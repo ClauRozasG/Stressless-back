@@ -1,0 +1,11 @@
+[project]
+name = "StressLess-backend"
+version = "0.1.0"
+dependencies = [
+  "fastapi[all]",
+  "sqlmodel",
+  "psycopg[binary]"
+]
+
+[tool.fastapi]
+app = "main:app"

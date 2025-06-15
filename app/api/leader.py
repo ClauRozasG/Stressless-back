@@ -11,7 +11,7 @@ import random
 router = APIRouter()
 
 @router.post("/leaders")
-def createLeader(data:Lider, session:Session = Depends(get_session), token = Depends(verify_token)):
+def createLeader(data:Lider, session:Session = Depends(get_session)):
 
     consulta = select(Lider).where(Lider.correo == data.correo)
     resultado = session.exec(consulta).first()

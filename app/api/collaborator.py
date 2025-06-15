@@ -10,7 +10,7 @@ import bcrypt
 router = APIRouter()
 
 @router.post("/collaborators")
-def createCollaborator(data:Colaborador, session: Session = Depends(get_session), token = Depends(verify_token)):
+def createCollaborator(data:Colaborador, session: Session = Depends(get_session)):
     
     consulta = select(Colaborador).where(Colaborador.correo == data.correo)
     resultado = session.exec(consulta).first()

@@ -6,8 +6,9 @@ from app.models.base import Base
 class LiderColaborador(SQLModel, table=True):
     _tablename_ = "lidercolaborador"  # nombre de la tabla en minúsculas
     _table_args_ = {"schema": "public"}  # esquema en PostgreSQL
-    id_lider:int = Field(foreign_key="lider.id",primary_key=True)
-    id_colaborador:int = Field(foreign_key="colaborador.id",primary_key=True)
+    id: Optional[int] = Field(default=None, primary_key=True)
+    id_lider: int = Field(foreign_key="lider.id")
+    id_colaborador: Optional[int] = Field(default=None, foreign_key="colaborador.id")
     estado:str
     id_invitacion:int = Field(foreign_key="invitacion.id")
     fecha_inicio:date

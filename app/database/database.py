@@ -1,8 +1,12 @@
 from sqlmodel import SQLModel, create_engine, Session
+import os
+from dotenv import load_dotenv
+from sqlmodel import SQLModel, create_engine
 
-DATABASE_URL = "postgresql://postgres:Selenaditsy_12@localhost:5432/stressdb"
+load_dotenv()
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-engine = create_engine(DATABASE_URL, echo=True)
+engine = create_engine(DATABASE_URL, echo=True, pool_pre_ping=True)
 
 def create_tables():
     SQLModel.metadata.create_all(engine)

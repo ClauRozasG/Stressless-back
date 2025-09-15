@@ -25,3 +25,13 @@ def enviar_correo(destinatario: str, otp: str):
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as servidor:
         servidor.login(EMAIL_USER, EMAIL_PASSWORD)
         servidor.sendmail(EMAIL_USER, destinatario, mensaje.as_string())
+
+def enviar_correo_custom(destinatario: str, asunto: str, cuerpo: str):
+    mensaje = MIMEText(cuerpo)
+    mensaje["Subject"] = asunto
+    mensaje["From"] = EMAIL_USER
+    mensaje["To"] = destinatario
+
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as servidor:
+        servidor.login(EMAIL_USER, EMAIL_PASSWORD)
+        servidor.sendmail(EMAIL_USER, destinatario, mensaje.as_string())

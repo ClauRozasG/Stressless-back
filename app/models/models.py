@@ -3,11 +3,14 @@ from sqlmodel import Relationship, SQLModel, Field
 from typing import List, Optional
 from app.models.base import Base
 
+
+
 class LiderColaborador(SQLModel, table=True):
-    _tablename_ = "lidercolaborador"  # nombre de la tabla en minúsculas
-    _table_args_ = {"schema": "public"}  # esquema en PostgreSQL
-    id_lider:int = Field(foreign_key="lider.id",primary_key=True)
-    id_colaborador:int = Field(foreign_key="colaborador.id",primary_key=True)
+    __tablename__ = "lidercolaborador"  
+    _table_args_ = {"schema": "public"}  
+    id: Optional[int] = Field(default=None, primary_key=True)
+    id_lider: int = Field(foreign_key="lider.id")
+    id_colaborador: Optional[int] = Field(default=None, foreign_key="colaborador.id")
     estado:str
     id_invitacion:int = Field(foreign_key="invitacion.id")
     fecha_inicio:date
@@ -18,8 +21,8 @@ class LiderColaborador(SQLModel, table=True):
     invitacion: Optional["Invitacion"] = Relationship(back_populates="lider_colaborador_link")
 
 class Lider(SQLModel, table=True):
-    _tablename_ = "lider"  # nombre de la tabla en minúsculas
-    _table_args_ = {"schema": "public"}  # esquema en PostgreSQL
+    __tablename__ = "lider"  
+    _table_args_ = {"schema": "public"}  
     id: Optional[int] = Field(default=None, primary_key=True)
     nombre: str
     correo: str
@@ -30,7 +33,7 @@ class Lider(SQLModel, table=True):
 
 class PreColaborador(SQLModel, table=True):
     __tablename__ = "precolaborador"
-    _table_args_ = {"schema": "public"}  # esquema en PostgreSQL
+    _table_args_ = {"schema": "public"}  
     id: Optional[int] = Field(default=None, primary_key=True)
     nombre: str
     correo: str
@@ -39,8 +42,8 @@ class PreColaborador(SQLModel, table=True):
     invitacion_precolaborador_link: List["Invitacion"] = Relationship(back_populates="precolaborador")
 
 class Invitacion(SQLModel, table=True):
-    _tablename_ = "invitacion"  # nombre de la tabla en minúsculas
-    _table_args_ = {"schema": "public"}  # esquema en PostgreSQL
+    __tablename__ = "invitacion"  
+    _table_args_ = {"schema": "public"}  
     id:Optional[int] = Field(default=None, primary_key=True)
     id_precolaborador:int = Field(foreign_key="precolaborador.id")
     fecha_envio:date
@@ -51,39 +54,52 @@ class Invitacion(SQLModel, table=True):
     lider_colaborador_link: List[LiderColaborador] = Relationship(back_populates="invitacion")
     precolaborador: Optional[PreColaborador] = Relationship(back_populates="invitacion_precolaborador_link")
 
+
 class Notificacion(SQLModel, table=True):
-    _tablename_ = "notificacion"
-    _table_args = {"schema": "public"} 
+    __tablename__ = "notificacion"
+    _table_args_ = {"schema": "public"}
     id: Optional[int] = Field(default=None, primary_key=True)
-    descripcion:str
-    estado:str
-    fecha_envio:date
-    id_prueba:int = Field(foreign_key="prueba.id")
+    id_colaborador: int = Field(foreign_key="colaborador.id")
+    id_prueba: int = Field(foreign_key="prueba.id")
+    mensaje: str = "Tienes una nueva prueba pendiente"
+    leido: bool = False
 
-    prueba:Optional["Prueba"] = Relationship(back_populates="notificacion_prueba_link")
+    prueba: Optional["Prueba"] = Relationship(back_populates="notificacion_prueba_link")
 
-    class Config:
-        orm_mode = True
+
+class NotificacionLider(SQLModel, table=True):
+    __tablename__ = "notificacion_lider"
+    _table_args_ = {"schema": "public"}
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    id_lider: int = Field(foreign_key="lider.id")
+    id_colaborador: int = Field(foreign_key="colaborador.id")
+    consecutivas: int = 0
+    mensaje: str = "El colaborador presenta resultados consecutivos de estrés"
+    creado_en: datetime = Field(default_factory=datetime.utcnow)
+    leido: bool = False
+
+
 
 class Prueba(SQLModel, table=True):
-    _tablename_ = "prueba" #nombre de la tabla en minúscula
-    _table_args_ = {"schema": "public"} # esquema en PostgreSQL
-    id:Optional[int] = Field(default=None, primary_key=True)
-    fecha_registro:date
-    fecha_resultado:date
-    id_colaborador:int = Field(foreign_key="colaborador.id")
-    estado:int
-    resultado:bool
+    __tablename__ = "prueba"
+    _table_args_ = {"schema": "public"}
+    id: Optional[int] = Field(default=None, primary_key=True)
+    fecha_registro: date
+    fecha_resultado: Optional[date] = None
+    id_colaborador: int = Field(foreign_key="colaborador.id")
+    estado: int  # 0 = pendiente, 1 = en proceso, 2 = completada
+    resultado: Optional[bool] = None
 
     colaborador: Optional["Colaborador"] = Relationship(back_populates="prueba_colaborador_link")
-    notificacion_prueba_link: List[Notificacion] = Relationship(back_populates="prueba")
+    notificacion_prueba_link: List["Notificacion"] = Relationship(back_populates="prueba")
 
     class Config:
         orm_mode = True
 
 class Colaborador(SQLModel, table=True):
-    _tablename_ = "colaborador"  # nombre de la tabla en minúsculas
-    _table_args_ = {"schema": "public"}  # esquema en PostgreSQL
+    __tablename__ = "colaborador"  
+    _table_args_ = {"schema": "public"}  
     id: Optional[int] = Field(default=None, primary_key=True)
     nombre: str
     correo: str
@@ -96,9 +112,39 @@ class Colaborador(SQLModel, table=True):
 
 class ResultadoAnalisis(SQLModel, table=True):
     __tablename__ = "resultado_analisis"
+    _table_args_ = {"schema": "public"}
     id: Optional[int] = Field(default=None, primary_key=True)
     id_colaborador: int = Field(foreign_key="colaborador.id")
+    id_prueba: int = Field(foreign_key="prueba.id")  
     resultado: str
     fecha: datetime = Field(default_factory=datetime.utcnow)
-    archivo_audio: str  
+    archivo_audio: str
+
+
+
+class ResetContrasena(SQLModel, table=True):
+    __tablename__ = "reset_contrasena"
+    _table_args_ = {"schema": "public"}
+    id: Optional[int] = Field(default=None, primary_key=True)
+    correo: str
+    rol: str  
+    codigo: str  # OTP de 6 dígitos
+    expira_en: datetime
+    usado: bool = False
+    creado_en: datetime = Field(default_factory=datetime.utcnow)
+
+class AgendaPrueba(SQLModel, table=True):
+    __tablename__ = "agenda_prueba"
+    _table_args_ = {"schema": "public"}
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    id_lider: int = Field(foreign_key="lider.id")
+    id_colaborador: int = Field(foreign_key="colaborador.id")
+
+    # 
+    scheduled_at: datetime
+
+    estado: int = 0            # 0=queued, 1=dispatched, 2=cancelled
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    processed_at: Optional[datetime] = None
 

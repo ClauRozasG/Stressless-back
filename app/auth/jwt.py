@@ -4,8 +4,14 @@ from fastapi import HTTPException, status, Depends
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.encoders import jsonable_encoder
 from app.core.config import SECRET_KEY, ALGORITHM
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import Depends, HTTPException, status
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+
+from jose import jwt, JWTError
+
+bearer_scheme = HTTPBearer()  
+
 
 def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode = data.copy()
@@ -13,18 +19,14 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode.update({"exp":expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
-def verify_token(token:str = Depends(oauth2_scheme)):
-    credentials_exception = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="token no válido o expirado",headers={"WWW-Authenticate":"Bearer"})
+def verify_token(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)):
+    token = credentials.credentials
     try:
-        payload = jwt.decode(token,SECRET_KEY,algorithms=ALGORITHM)
-        correo:str = payload.get("sub")
-        rol:str = payload.get("rol")
-        id:int = payload.get("id")
-        if correo is None:
-            raise credentials_exception
-        if rol is None:
-            raise credentials_exception
-        return {"correo":correo,"rol":rol,"id":id}
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return payload
     except JWTError:
-        raise credentials_exception
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token inválido o expirado",
+        )
         

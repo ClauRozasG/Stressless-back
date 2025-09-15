@@ -91,7 +91,7 @@ def update_leader(leaders_id: int, valor: Lider, session: Session = Depends(get_
 
     return resultado
 
-@router.delete("leaders/{leaders_id}")
+@router.delete("/leaders/{leaders_id}")
 def delete_leader(leaders_id: int, session:Session = Depends(get_session), token = Depends(verify_token)):
 
     consulta = select(Lider).where(Lider.id == leaders_id)
@@ -109,7 +109,7 @@ def delete_leader(leaders_id: int, session:Session = Depends(get_session), token
     return resultado
 
 @router.get("/leaders/{leaders_id}/collaborators")
-def getCollaboratorsByLeaderId(leaders_id:int, session:Session = Depends(get_session), token = Depends(verify_token)):
+def getCollaboratorsByLeaderId(leaders_id:int, session:Session = Depends(get_session)):
 
     consulta_lider = select(Lider).where(Lider.id == leaders_id)
     resultado = session.exec(consulta_lider).all()
@@ -121,3 +121,87 @@ def getCollaboratorsByLeaderId(leaders_id:int, session:Session = Depends(get_ses
     colaboradores = session.exec(consulta).all()
     
     return colaboradores
+
+
+@router.get("/leaders/{leaders_id}/resumen-colaboradores")
+def getResumenColaboradores(leaders_id: int, session: Session = Depends(get_session)):
+    lider = session.exec(select(Lider).where(Lider.id == leaders_id)).first()
+    if not lider:
+        raise HTTPException(status_code=404, detail="Líder no encontrado")
+
+    # 1) Base: todos los precolaboradores invitados por el líder
+    precolabs = session.exec(
+        select(PreColaborador).where(PreColaborador.correo_lider == lider.correo)
+    ).all()
+
+    resultado = []
+    correos_listados = set()
+
+    for pre in precolabs:
+        
+        invit_ids = session.exec(
+            select(Invitacion.id).where(Invitacion.id_precolaborador == pre.id)
+        ).all()
+        invit_ids = [iid for (iid,) in invit_ids] if invit_ids and isinstance(invit_ids[0], tuple) else invit_ids
+
+        
+        relacion = session.exec(
+            select(LiderColaborador).where(
+                LiderColaborador.id_lider == lider.id,
+                (LiderColaborador.id_invitacion.in_(invit_ids)) 
+            )
+        ).first()
+
+        estado = "No registrado"
+        colaborador_id = None
+        tiene_historial = False
+
+       
+        if not relacion:
+            relacion = session.exec(
+                select(LiderColaborador)
+                .join(Colaborador, Colaborador.id == LiderColaborador.id_colaborador)
+                .where(
+                    LiderColaborador.id_lider == lider.id,
+                    Colaborador.correo == pre.correo
+                )
+            ).first()
+
+        if relacion and relacion.id_colaborador:
+            estado = "Registrado"
+            colaborador_id = relacion.id_colaborador
+            from app.models.models import ResultadoAnalisis
+            historial = session.exec(
+                select(ResultadoAnalisis).where(ResultadoAnalisis.id_colaborador == colaborador_id)
+            ).first()
+            tiene_historial = historial is not None
+
+        resultado.append({
+            "nombre": pre.nombre,
+            "correo": pre.correo,
+            "estado": estado,
+            "colaborador_id": colaborador_id,
+            "tiene_historial": tiene_historial
+        })
+        correos_listados.add(pre.correo)
+
+    
+    vinculados = session.exec(
+        select(Colaborador)
+        .join(LiderColaborador, LiderColaborador.id_colaborador == Colaborador.id)
+        .where(LiderColaborador.id_lider == lider.id)
+    ).all()
+
+    for col in vinculados:
+        if col.correo in correos_listados:
+            continue  
+        resultado.append({
+            "nombre": col.nombre,
+            "correo": col.correo,
+            "estado": "Registrado",
+            "colaborador_id": col.id,
+            "tiene_historial": bool(col.prueba_colaborador_link)  # rápido; o consulta ResultadoAnalisis si prefieres
+        })
+
+    return resultado
+

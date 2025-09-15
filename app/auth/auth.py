@@ -33,9 +33,14 @@ def login(data: LoginRequest, session: Session = Depends(get_session)):
     if not contrasenia_valida:
         raise HTTPException(status_code=401, detail="Credenciales inválidas")
     
-    token = create_access_token({"sub":data.correo,"rol":data.rol, "id":resultado.id})
+    token = create_access_token({"sub": data.correo, "rol": data.rol, "id": resultado.id})
 
-    return {"token":token, "id": resultado.id}
+    return {
+        "token": token,
+        "id": resultado.id,
+        "nombre": resultado.nombre  
+    }
+
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 def get_current_user(token: str = Depends(oauth2_scheme)):

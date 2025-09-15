@@ -1,6 +1,6 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import List
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from sqlmodel import Session, select
 from app.auth.jwt import verify_token
 from app.database.database import get_session
@@ -12,12 +12,12 @@ from datetime import datetime
 import random
 import string
 
+
 router = APIRouter()
 
 def generar_otp(longitud=5):
     return ''.join(random.choices(string.digits, k=longitud))
 
-otp = generar_otp()
 
 class InvitationRequest(BaseModel):
     id_lider:int
@@ -51,18 +51,16 @@ def createInvitation(request:InvitationRequest,session:Session = Depends(get_ses
         consulta = select(Colaborador).where(Colaborador.id == i)
         colaborador = session.exec(consulta).first()
 
-        enviar_correo(colaborador.correo,otp)
+        enviar_correo(colaborador.correo, invitacion.codigo)
 
     return token
 
 @router.post("/send-invitations/{id_lider}")
 def send_invitations(id_lider: int, session: Session = Depends(get_session), token = Depends(verify_token)):
-    # 1. Buscar al líder
     lider = session.exec(select(Lider).where(Lider.id == id_lider)).first()
     if not lider:
         raise HTTPException(status_code=404, detail="Líder no encontrado")
 
-    # 2. Buscar los precolaboradores que coinciden con el correo del líder
     precolabs = session.exec(
         select(PreColaborador).where(PreColaborador.correo_lider == lider.correo)
     ).all()
@@ -73,6 +71,9 @@ def send_invitations(id_lider: int, session: Session = Depends(get_session), tok
     enviados = []
 
     for precolab in precolabs:
+        # Generar un OTP único por colaborador
+        otp = generar_otp()
+
         # Crear la invitación
         invitacion = Invitacion(
             id_precolaborador=precolab.id,
@@ -85,24 +86,25 @@ def send_invitations(id_lider: int, session: Session = Depends(get_session), tok
         session.commit()
         session.refresh(invitacion)
 
-        # Crear la relación en tabla intermedia
+        # Relación en tabla intermedia
         relacion = LiderColaborador(
             id_lider=id_lider,
-            id_colaborador=None,  # se llenará cuando el colaborador se registre
+            id_colaborador=None,
             estado="pendiente",
             id_invitacion=invitacion.id,
             fecha_inicio=date.today(),
             fecha_fin=date.today()
         )
         session.add(relacion)
+        session.commit()
 
-        enviar_correo(precolab.correo,otp)
+        # Enviar el correo con el código único
+        enviar_correo(precolab.correo, otp)
 
         enviados.append({
             "nombre": precolab.nombre,
             "correo": precolab.correo,
             "codigo": otp
-
         })
 
     session.commit()
@@ -114,3 +116,82 @@ def obtener_precolaboradores(correo_lider: str, session: Session = Depends(get_s
         select(PreColaborador).where(PreColaborador.correo_lider == correo_lider)
     ).all()
     return precolabs
+
+
+class ResendCodeRequest(BaseModel):
+    correo: EmailStr  # correo del colaborador
+
+@router.post("/resend-code")
+def resend_code(data: ResendCodeRequest, session: Session = Depends(get_session)):
+    """
+    Reenvía el OTP de invitación a un precolaborador. Si ya existe una invitación
+    no usada (estado=False), reenvía ese código. Si no existe, crea una nueva.
+    """
+    correo = data.correo.lower()
+
+    # 1) Buscar precolaborador por correo
+    precolab = session.exec(
+        select(PreColaborador).where(PreColaborador.correo == correo)
+    ).first()
+    if not precolab:
+       
+        return {"mensaje": "Si el correo está registrado, se ha reenviado el código."}
+
+    
+    invitacion = session.exec(
+        select(Invitacion).where(
+            Invitacion.id_precolaborador == precolab.id,
+            Invitacion.estado == False
+        ).order_by(Invitacion.fecha_envio.desc())
+    ).first()
+
+    
+    if invitacion and (datetime.utcnow().date() == invitacion.fecha_envio):
+        
+        pass  
+
+    
+    if not invitacion:
+        codigo = generar_otp(5)
+        invitacion = Invitacion(
+            id_precolaborador=precolab.id,
+            fecha_envio=date.today(),
+            fecha_respuesta=date.today(), 
+            estado=False,
+            codigo=codigo
+        )
+        session.add(invitacion)
+        session.commit()
+        session.refresh(invitacion)
+
+        
+        lider = session.exec(
+            select(Lider).where(Lider.correo == precolab.correo_lider)
+        ).first()
+
+        if lider:
+            
+            ya_rel = session.exec(
+                select(LiderColaborador).where(
+                    LiderColaborador.id_invitacion == invitacion.id
+                )
+            ).first()
+            if not ya_rel:
+                relacion = LiderColaborador(
+                    id_lider=lider.id,
+                    id_colaborador=None,
+                    estado="pendiente",
+                    id_invitacion=invitacion.id,
+                    fecha_inicio=date.today(),
+                    fecha_fin=date.today()
+                )
+                session.add(relacion)
+                session.commit()
+
+
+    try:
+        enviar_correo(precolab.correo, invitacion.codigo)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="No se pudo enviar el correo en este momento")
+
+    return {"mensaje": "Si el correo está registrado, se ha reenviado el código."}

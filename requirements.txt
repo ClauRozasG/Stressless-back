@@ -1,0 +1,11 @@
+# --- Web API ---
+fastapi>=0.110,<1.0
+uvicorn[standard]>=0.23,<1.0
+
+# --- ORM / DB ---
+SQLAlchemy>=2.0,<3.0
+psycopg[binary]>=3.1,<4.0      # Adaptador Postgres (psycopg3 binario)
+
+scikit-learn>=1.0,<2.0
+joblib>=1.2,<2.0
+numpy>=1.21,<3.0

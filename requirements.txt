@@ -19,3 +19,9 @@ email-validator>=2.0
 scikit-learn>=1.0,<2.0
 joblib>=1.2,<2.0
 numpy>=1.21,<3.0
+
+# Audio / feature extraction
+librosa>=0.11.0
+soundfile>=0.12
+soxr>=0.5
+audioread>=3

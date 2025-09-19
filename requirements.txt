@@ -3,11 +3,17 @@ uvicorn[standard]>=0.23,<1.0
 
 SQLAlchemy>=2.0,<3.0
 psycopg2-binary==2.9.9
-sqlmodel>=0.0.19
+sqlmodel>=0.0.25
 
 alembic>=1.12,<2.0
 python-dotenv>=1.0,<2.0
 
+# Auth/JWT
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+python-multipart>=0.0.9
+
+# ML (por tus .joblib)
 scikit-learn>=1.0,<2.0
 joblib>=1.2,<2.0
 numpy>=1.21,<3.0

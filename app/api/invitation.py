@@ -1,36 +1,38 @@
-from datetime import date, datetime, timedelta
+# app/api/invitation.py
+from datetime import date, datetime
+import random, string
 from typing import List
-from pydantic import BaseModel, EmailStr
-from sqlmodel import Session, select
-from app.auth.jwt import verify_token
-from app.database.database import get_session
-from app.models.models import Colaborador, Invitacion, Lider, LiderColaborador, PreColaborador
+
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, EmailStr
-from email_utils import enviar_correo
-from datetime import datetime
-import random
-import string
+from sqlmodel import Session, select
 
+from app.auth.jwt import verify_token, verify_token_optional
+from app.database.database import get_session
+from app.models.models import Colaborador, Invitacion, Lider, LiderColaborador, PreColaborador
+from email_utils import enviar_correo
 
 router = APIRouter()
 
-def generar_otp(longitud=5):
+def generar_otp(longitud: int = 5) -> str:
     return ''.join(random.choices(string.digits, k=longitud))
 
-
 class InvitationRequest(BaseModel):
-    id_lider:int
-    collaborators:List[int]
+    id_lider: int
+    collaborators: List[int]
 
 @router.post("/invitation")
-def createInvitation(request:InvitationRequest,session:Session = Depends(get_session),token = Depends(verify_token)):
-    
+def createInvitation(
+    request: InvitationRequest,
+    session: Session = Depends(get_session),
+    token = Depends(verify_token),
+):
     if token["id"] != request.id_lider:
         raise HTTPException(status_code=401, detail="Lider no encontrado")
-    
-    invitacion:Invitacion = Invitacion(fecha_envio=datetime.now(),fecha_respuesta=None,estado=True,codigo=generar_otp())
 
+    invitacion = Invitacion(
+        fecha_envio=datetime.now(), fecha_respuesta=None, estado=True, codigo=generar_otp()
+    )
     session.add(invitacion)
     session.commit()
     session.refresh(invitacion)
@@ -42,21 +44,27 @@ def createInvitation(request:InvitationRequest,session:Session = Depends(get_ses
             estado="Pendiente",
             id_invitacion=invitacion.id,
             fecha_inicio=datetime.now(),
-            fecha_fin=None
+            fecha_fin=None,
         )
         session.add(item)
         session.commit()
         session.refresh(item)
 
-        consulta = select(Colaborador).where(Colaborador.id == i)
-        colaborador = session.exec(consulta).first()
-
+        colaborador = session.exec(select(Colaborador).where(Colaborador.id == i)).first()
         enviar_correo(colaborador.correo, invitacion.codigo)
 
-    return token
+    return {"ok": True}
 
 @router.post("/send-invitations/{id_lider}")
-def send_invitations(id_lider: int, session: Session = Depends(get_session), token = Depends(verify_token)):
+def send_invitations(
+    id_lider: int,
+    session: Session = Depends(get_session),
+    token = Depends(verify_token_optional),  # ← opcional para demo
+):
+    # Si vino token y no corresponde al líder, rechazamos
+    if token and token.get("id") != id_lider:
+        raise HTTPException(status_code=401, detail="Líder no coincide con token")
+
     lider = session.exec(select(Lider).where(Lider.id == id_lider)).first()
     if not lider:
         raise HTTPException(status_code=404, detail="Líder no encontrado")
@@ -64,19 +72,14 @@ def send_invitations(id_lider: int, session: Session = Depends(get_session), tok
     precolabs = session.exec(
         select(PreColaborador).where(PreColaborador.correo_lider == lider.correo)
     ).all()
-
     if not precolabs:
         raise HTTPException(status_code=404, detail="No hay precolaboradores para este líder")
 
     enviados = []
-
-    for precolab in precolabs:
-        # Generar un OTP único por colaborador
+    for p in precolabs:
         otp = generar_otp()
-
-        # Crear la invitación
         invitacion = Invitacion(
-            id_precolaborador=precolab.id,
+            id_precolaborador=p.id,
             fecha_envio=date.today(),
             fecha_respuesta=date.today(),
             estado=False,
@@ -86,29 +89,22 @@ def send_invitations(id_lider: int, session: Session = Depends(get_session), tok
         session.commit()
         session.refresh(invitacion)
 
-        # Relación en tabla intermedia
         relacion = LiderColaborador(
             id_lider=id_lider,
             id_colaborador=None,
             estado="pendiente",
             id_invitacion=invitacion.id,
             fecha_inicio=date.today(),
-            fecha_fin=date.today()
+            fecha_fin=date.today(),
         )
         session.add(relacion)
         session.commit()
 
-        # Enviar el correo con el código único
-        enviar_correo(precolab.correo, otp)
+        enviar_correo(p.correo, otp)
+        enviados.append({"nombre": p.nombre, "correo": p.correo, "codigo": otp})
 
-        enviados.append({
-            "nombre": precolab.nombre,
-            "correo": precolab.correo,
-            "codigo": otp
-        })
-
-    session.commit()
     return {"mensaje": "Invitaciones enviadas", "invitaciones": enviados}
+
 
 @router.get("/precolaboradores/{correo_lider}")
 def obtener_precolaboradores(correo_lider: str, session: Session = Depends(get_session)):

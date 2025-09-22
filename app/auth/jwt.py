@@ -7,7 +7,7 @@ from app.core.config import SECRET_KEY, ALGORITHM
 from fastapi import Depends, HTTPException, status
 
 # Dos esquemas: uno estricto y uno opcional
-optional_bearer = HTTPBearer(auto_error=False)
+##optional_bearer = HTTPBearer(auto_error=False)
 
 bearer_scheme = HTTPBearer()  
 
@@ -30,13 +30,13 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(bearer_sche
         )
         
 
-def verify_token_optional(creds: HTTPAuthorizationCredentials | None = Security(optional_bearer)):
-    # Si no hay token, deja pasar (demo)
-    if not creds:
-        return None
-    # Si hay token, intenta decodificarlo
-    try:
-        return jwt.decode(creds.credentials, SECRET_KEY, algorithms=[ALGORITHM])
-    except JWTError:
-        # En demo preferimos no botar 401; simplemente tratar como sin token
-        return None
+##def verify_token_optional(creds: HTTPAuthorizationCredentials | None = Security(optional_bearer)):
+##    # Si no hay token, deja pasar (demo)
+##    if not creds:
+##        return None
+##    # Si hay token, intenta decodificarlo
+##    try:
+##        return jwt.decode(creds.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+##    except JWTError:
+##        # En demo preferimos no botar 401; simplemente tratar como sin token
+##        return None

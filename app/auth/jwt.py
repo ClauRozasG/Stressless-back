@@ -7,7 +7,6 @@ from app.core.config import SECRET_KEY, ALGORITHM
 from fastapi import Depends, HTTPException, status
 
 # Dos esquemas: uno estricto y uno opcional
-strict_bearer = HTTPBearer(auto_error=True)
 optional_bearer = HTTPBearer(auto_error=False)
 
 bearer_scheme = HTTPBearer()  

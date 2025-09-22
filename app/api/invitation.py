@@ -59,11 +59,8 @@ def createInvitation(
 def send_invitations(
     id_lider: int,
     session: Session = Depends(get_session),
-    token = Depends(verify_token_optional),  # ← opcional para demo
 ):
-    # Si vino token y no corresponde al líder, rechazamos
-    if token and token.get("id") != id_lider:
-        raise HTTPException(status_code=401, detail="Líder no coincide con token")
+
 
     lider = session.exec(select(Lider).where(Lider.id == id_lider)).first()
     if not lider:

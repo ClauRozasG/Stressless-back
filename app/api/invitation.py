@@ -2,7 +2,7 @@ from datetime import date, datetime, timedelta
 from typing import List
 from pydantic import BaseModel, EmailStr
 from sqlmodel import Session, select
-from app.auth.jwt import verify_token, verify_token_optional
+from app.auth.jwt import verify_token
 from app.database.database import get_session
 from app.models.models import Colaborador, Invitacion, Lider, LiderColaborador, PreColaborador
 from fastapi import APIRouter, HTTPException, Depends

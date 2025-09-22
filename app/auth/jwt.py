@@ -10,7 +10,8 @@ from fastapi import Depends, HTTPException, status
 
 from jose import jwt, JWTError
 
-bearer_scheme = HTTPBearer()  
+bearer_scheme = HTTPBearer() 
+
 
 
 def create_access_token(data: dict, expires_delta: timedelta = None):
@@ -30,7 +31,7 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(bearer_sche
             detail="Token inválido o expirado",
         )
         
-def verify_token_optional(creds: HTTPAuthorizationCredentials | None = Security(bearer)):
+def verify_token_optional(creds: HTTPAuthorizationCredentials | None = Security(bearer_scheme)):
     """
     Devuelve el payload del token si viene y es válido.
     Si no viene token, devuelve None y deja pasar (solo para pruebas).

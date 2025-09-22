@@ -1,13 +1,14 @@
-# app/auth/jwt.py
+from jose import JWTError, jwt
 from datetime import datetime, timedelta
-from fastapi import HTTPException, status, Security
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from jose import jwt, JWTError
+from fastapi import HTTPException, status, Depends, Security
+from fastapi.security import OAuth2PasswordBearer
+from fastapi.encoders import jsonable_encoder
 from app.core.config import SECRET_KEY, ALGORITHM
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi import Depends, HTTPException, status
 
-# Dos esquemas: uno estricto y uno opcional
-##optional_bearer = HTTPBearer(auto_error=False)
+
+from jose import jwt, JWTError
 
 bearer_scheme = HTTPBearer()  
 
@@ -29,14 +30,14 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(bearer_sche
             detail="Token inválido o expirado",
         )
         
-
-##def verify_token_optional(creds: HTTPAuthorizationCredentials | None = Security(optional_bearer)):
-##    # Si no hay token, deja pasar (demo)
-##    if not creds:
-##        return None
-##    # Si hay token, intenta decodificarlo
-##    try:
-##        return jwt.decode(creds.credentials, SECRET_KEY, algorithms=[ALGORITHM])
-##    except JWTError:
-##        # En demo preferimos no botar 401; simplemente tratar como sin token
-##        return None
+def verify_token_optional(creds: HTTPAuthorizationCredentials | None = Security(bearer)):
+    """
+    Devuelve el payload del token si viene y es válido.
+    Si no viene token, devuelve None y deja pasar (solo para pruebas).
+    """
+    if not creds:
+        return None
+    try:
+        return verify_token(creds.credentials)  # tu función actual
+    except Exception:
+        return None

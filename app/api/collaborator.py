@@ -142,7 +142,7 @@ def obtener_prueba_pendiente(id: int, session: Session = Depends(get_session)):
     
     notificacion = session.exec(
         select(Notificacion).where(Notificacion.id_prueba == prueba.id)
-        .order_by(Notificacion.fecha_registro.asc(), Notificacion.id.asc())
+        .order_by(Notificacion.id.asc(), Notificacion.id.asc())
     ).first()
 
     return {
@@ -253,5 +253,6 @@ def listar_pruebas_pendientes(id: int, session: Session = Depends(get_session)):
                       else str(p.fecha_registro))
         })
     return {"total": len(out), "items": out}
+
 
 
